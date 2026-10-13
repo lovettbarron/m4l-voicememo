@@ -4,6 +4,8 @@ A Max for Live audio effect that brings your Apple Voice Memos into Live. Pick a
 
 It also gives a rough read on the selected window: peak and RMS level, an estimated tempo, an estimated key, and whether it sounds more like speech or music.
 
+![The VoiceMemo device in Live: memo list, waveform with the longest segment selected, and analysis panel](docs/screenshot.png)
+
 Recordings sync to your Mac through iCloud as usual. The device reads them in place and never changes your Voice Memos library.
 
 ## Requirements
