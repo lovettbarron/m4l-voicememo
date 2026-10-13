@@ -119,10 +119,18 @@ function createController({ deps, send, cacheDir, home }) {
     st.files = files;
     send('audio', files.fullWav);
     loadSegments();
-    send('segmentindex', 0);
+    // Open on the longest segment: short scraps (count-ins, handling noise) usually come first.
+    st.params.segment = longestSegment(st.segments);
+    send('segmentindex', st.params.segment);
     recompute();
     send('state', { name: 'ready' });
     if (st.params.auto) audition();
+  }
+
+  function longestSegment(segs) {
+    let best = 0;
+    segs.forEach((g, i) => { if (g.end - g.start > segs[best].end - segs[best].start) best = i; });
+    return best;
   }
 
   function loadSegments() {

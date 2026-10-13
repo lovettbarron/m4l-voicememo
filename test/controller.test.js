@@ -60,20 +60,21 @@ test('init lists memos and goes idle', () => {
   assert.equal(last('state')[1].name, 'idle');
 });
 
-test('selecting a local memo shows waveform, segments, first-segment window and analysis', async () => {
+test('selecting a local memo shows waveform, segments, longest-segment window and analysis', async () => {
   const { c, last, sent } = setup();
   c.init({});
   await c.selectMemo('A');
   assert.equal(last('waveform')[1].duration, 30);
   assert.equal(last('waveform')[1].peaks.length, 1200);
   assert.equal(last('segments')[1].items.length, 2);
-  assert.deepEqual(last('window')[1], { start: 1, end: 3 });
+  assert.deepEqual(last('window')[1], { start: 10, end: 14 }); // the longer of 1-3 s and 10-14 s
+  assert.deepEqual(last('segmentindex'), ['segmentindex', 1]);
   const info = last('windowinfo')[1];
   assert.equal(info.analysis.tempo.bpm, 96);
   assert.equal(info.segmentCount, 2);
   assert.deepEqual(last('audio'), ['audio', '/cache/A.wav']);
   assert.equal(last('state')[1].name, 'ready');
-  assert.deepEqual(last('audition'), ['audition', 1000, 3000]); // auto is on by default
+  assert.deepEqual(last('audition'), ['audition', 10000, 14000]); // auto is on by default
   assert.deepEqual(last('pullenable'), ['pullenable', 1]);
   assert.ok(sent.findIndex((m) => m[0] === 'waveform') < sent.findIndex((m) => m[0] === 'audio'));
 });
@@ -117,6 +118,7 @@ test('tempo change recomputes bar windows', async () => {
   const { c, last } = setup();
   c.init({});
   await c.selectMemo('A');
+  c.setParam('segment', 0);
   c.setParam('length', W.PRESETS.indexOf('1bar'));
   c.setTempo(60, 4);
   assert.deepEqual(last('window')[1], { start: 1, end: 5 });
@@ -157,6 +159,7 @@ test('pull writes the window and forwards the path to Live', async () => {
   const { c, last, calls } = setup();
   c.init({});
   await c.selectMemo('A');
+  c.setParam('segment', 0);
   c.setTarget(1, 'T3 · Slot 5');
   c.setSetPath('/set/Song.als');
   c.setParam('norm', 1);
