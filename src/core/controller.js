@@ -64,7 +64,7 @@ function createController({ deps, send, cacheDir, home }) {
       st.pendingRestore = null;
       if (st.memos.some((m) => m.id === id)) {
         send('select', id);
-        setImmediate(() => selectMemo(id));
+        setImmediate(() => selectMemo(id, { restoring: true }));
       }
     }
   }
@@ -78,8 +78,10 @@ function createController({ deps, send, cacheDir, home }) {
     if (!id || (st.memo && st.memo.id === id)) return;
     if (st.memos.length && st.memos.some((m) => m.id === id)) {
       send('select', id);
-      selectMemo(id);
-    } else st.pendingRestore = id;
+      return selectMemo(id, { restoring: true });
+    }
+    st.pendingRestore = id;
+    return Promise.resolve();
   }
 
   function showWaveform(analysisWav) {
@@ -90,7 +92,7 @@ function createController({ deps, send, cacheDir, home }) {
     send('waveform', { peaks: Array.from(deps.peaks(st.mono, PEAK_BINS)), duration: st.duration });
   }
 
-  async function selectMemo(id) {
+  async function selectMemo(id, { restoring = false } = {}) {
     const memo = st.memos.find((m) => m.id === id);
     if (!memo) return;
     // Double-clicks and the Set-restore chain re-send the open memo; only a failed load reloads.
@@ -99,6 +101,7 @@ function createController({ deps, send, cacheDir, home }) {
     const token = ++st.token;
     const current = () => token === st.token;
     Object.assign(st, { memo, files: null, mono: null, segments: [], windows: {}, window: null, anchorS: null, manual: null });
+    const savedSegment = st.params.segment;
     st.params.segment = 0;
     send('header', { title: memo.title, date: memo.date, duration: memo.duration });
     if (memo.status !== 'local') {
@@ -126,7 +129,10 @@ function createController({ deps, send, cacheDir, home }) {
     send('audio', files.fullWav);
     loadSegments();
     // Open on the longest segment: short scraps (count-ins, handling noise) usually come first.
-    st.params.segment = longestSegment(st.segments);
+    // A Set reload keeps the segment saved with it.
+    st.params.segment = restoring
+      ? Math.max(0, Math.min(Number(savedSegment) || 0, st.segments.length - 1))
+      : longestSegment(st.segments);
     send('segmentindex', st.params.segment);
     recompute();
     send('state', { name: 'ready' });

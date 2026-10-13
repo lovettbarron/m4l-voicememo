@@ -248,3 +248,20 @@ test('bar length follows the time signature denominator (Live tempo counts quart
   c.setTempo(60, 7, 8);
   assert.deepEqual(last('window')[1], { start: 1, end: 4.5 });
 });
+
+test('restoring a Set keeps its saved segment instead of the longest', async () => {
+  const { c, last } = setup();
+  c.init({});
+  c.setParam('segment', 0); // saved parameter value arrives first on Set load
+  await c.restore('A');
+  assert.deepEqual(last('window')[1], { start: 1, end: 3 });
+  assert.deepEqual(last('segmentindex'), ['segmentindex', 0]);
+});
+
+test('a saved segment beyond the new segment count is clamped', async () => {
+  const { c, last } = setup();
+  c.init({});
+  c.setParam('segment', 7);
+  await c.restore('A');
+  assert.deepEqual(last('segmentindex'), ['segmentindex', 1]);
+});
