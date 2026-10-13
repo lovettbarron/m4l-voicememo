@@ -49,7 +49,7 @@ Things to know before you grant it:
 3. **Audition** plays the window, with a playhead. Press it again to stop. **AUTO** auditions automatically when the window changes.
 4. **Select a clip slot** on the device's track and press **PULL**. The clip goes into the selected slot, or the first empty slot below it. The right-hand panel shows where it will land.
 
-**NORM** normalizes the pulled clip. The gear button opens settings for the silence threshold, the minimum gap between segments, and the edge fade.
+**NORM** normalizes the pulled clip. The gear button opens settings for the silence threshold (how far below the recording's loud parts counts as silence, so quiet phone recordings split as well as loud ones), the minimum gap between segments, and the edge fade.
 
 Where pulled files go:
 - **Saved Set:** `<Set folder>/Samples/Imported/VoiceMemo/`, so Live's Collect All and Save keeps them with the project.

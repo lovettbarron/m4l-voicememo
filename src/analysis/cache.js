@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { safeId } = require('../util/ids');
 
-const VERSION = 1;
+const VERSION = 2; // 2: segments use a level-relative silence threshold
 
 function createCache(dir) {
   fs.mkdirSync(dir, { recursive: true });

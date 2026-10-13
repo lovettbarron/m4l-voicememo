@@ -27,10 +27,11 @@ test('silence and empty input give no segments', () => {
   assert.deepEqual(segments(new Float32Array(0), SR), []);
 });
 
-test('respects threshold', () => {
-  const quiet = sine(200, 1, SR, 0.005); // about -49 dBFS RMS
-  assert.equal(segments(quiet, SR).length, 0);
-  assert.equal(segments(quiet, SR, { thresholdDb: -60 }).length, 1);
+test('threshold is measured below the recording\'s loud parts', () => {
+  const quietPart = sine(200, 1, SR, 0.5 * Math.pow(10, -30 / 20)); // 30 dB under the loud part
+  const a = concat(sine(200, 1), silence(1), quietPart);
+  assert.equal(segments(a, SR).length, 2); // default -40: the quiet part still counts
+  assert.equal(segments(a, SR, { thresholdDb: -20 }).length, 1);
 });
 
 test('segments handles 10 minutes of audio quickly', () => {
@@ -43,4 +44,36 @@ test('segments handles 10 minutes of audio quickly', () => {
   const ms = Date.now() - t0;
   assert.equal(segs.length, 100);
   assert.ok(ms < 1500, `took ${ms} ms`);
+});
+
+// A quiet phone recording of plucked guitar: notes decay well below -40 dBFS between plucks,
+// over a room-noise floor. Silence must be judged against the recording's own level.
+function quietPlucks(seconds, sr = SR) {
+  const out = new Float32Array(Math.round(seconds * sr));
+  for (let i = 0; i < out.length; i++) {
+    const t = (i / sr) % 0.5;
+    out[i] = 0.03 * Math.exp(-t * 4) * Math.sin(2 * Math.PI * 196 * (i / sr));
+  }
+  return out;
+}
+function roomNoise(seconds, amp = 0.0005, sr = SR) {
+  const out = new Float32Array(Math.round(seconds * sr));
+  let s = 7;
+  for (let i = 0; i < out.length; i++) { s = (s * 16807) % 2147483647; out[i] = amp * ((s / 2147483647) * 2 - 1); }
+  return out;
+}
+const mix = (a, b) => a.map((v, i) => v + (b[i] || 0));
+
+test('quiet recordings segment by their own level, not a fixed -40 dBFS', () => {
+  const take = concat(quietPlucks(5), new Float32Array(SR * 2), quietPlucks(4), new Float32Array(SR * 2), quietPlucks(3));
+  const segs = segments(mix(take, roomNoise(16)), SR);
+  assert.equal(segs.length, 3, JSON.stringify(segs));
+  assert.ok(near(segs[0].start, 0, 0.1) && near(segs[0].end, 5, 0.3), JSON.stringify(segs[0]));
+  assert.ok(near(segs[2].start, 13, 0.1), JSON.stringify(segs[2]));
+});
+
+test('continuous playing with soft passages stays one segment', () => {
+  const soft = quietPlucks(4).map((v) => v * 0.2);
+  const segs = segments(mix(concat(quietPlucks(4), soft, quietPlucks(4)), roomNoise(12, 0.002)), SR);
+  assert.equal(segs.length, 1, JSON.stringify(segs));
 });

@@ -35,3 +35,9 @@ test('creates the directory if missing', () => {
   createCache(d).put('x', 1, {});
   assert.ok(fs.existsSync(path.join(d, 'x.json')));
 });
+
+test('entries from before level-relative segmentation (v1) are ignored', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vm-cache-'));
+  fs.writeFileSync(path.join(dir, 'memo.json'), JSON.stringify({ version: 1, mtimeMs: 5, analysis: { segments: [] } }));
+  assert.equal(createCache(dir).get('memo', 5), null);
+});
