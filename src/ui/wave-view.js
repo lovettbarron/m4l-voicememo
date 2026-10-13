@@ -1,0 +1,230 @@
+// wave-view.js \u2014 waveform, segment chips, window bracket and state overlays. Max [jsui], ES5.
+include('theme.js');
+mgraphics.init();
+mgraphics.relative_coords = 0;
+mgraphics.autofill = 0;
+inlets = 1;
+outlets = 1;
+
+var HEADER_H = 14;
+var CHIP_H = 11;
+var RULER_H = 10;
+var head = null;
+var peaks = [];
+var duration = 0;
+var segs = [];
+var win = null;
+var prog = null;
+var st = { name: 'idle' };
+var buttons = [];
+var dragEdge = null;
+// Audition playhead: animated locally from wall-clock time between play and stop.
+var play = null;
+var playTask = new Task(function () {
+  if (!play) return;
+  if (playPos() >= play.end) { stopplay(); return; }
+  mgraphics.redraw();
+}, this);
+loadTheme();
+
+function size() {
+  return [box.rect[2] - box.rect[0], box.rect[3] - box.rect[1]];
+}
+function waveRect() {
+  var s = size();
+  return { x: 0, y: HEADER_H + 2, w: s[0], h: s[1] - HEADER_H - CHIP_H - RULER_H - 6 };
+}
+function chipY() {
+  var r = waveRect();
+  return r.y + r.h + 2;
+}
+function tToX(t) {
+  return duration > 0 ? (t / duration) * size()[0] : 0;
+}
+function xToT(x) {
+  return Math.max(0, Math.min(duration, (x / size()[0]) * duration));
+}
+
+function theme() { loadTheme(); mgraphics.redraw(); }
+function header(name) { head = readDict(arguments); mgraphics.redraw(); }
+function waveform(name) {
+  var d = readDict(arguments);
+  peaks = d.peaks || [];
+  duration = d.duration || 0;
+  prog = null;
+  mgraphics.redraw();
+}
+function segments(name) { segs = readDict(arguments).items || []; mgraphics.redraw(); }
+function window(name) { win = readDict(arguments); mgraphics.redraw(); }
+function progress(name) { prog = readDict(arguments); mgraphics.redraw(); }
+function state(name) {
+  st = readDict(arguments);
+  if (st.name === 'loading') { peaks = []; segs = []; win = null; stopplay(); }
+  mgraphics.redraw();
+}
+
+function playPos() {
+  return play ? play.start + (Date.now() - play.t0) / 1000 : 0;
+}
+function playhead(startMs, endMs) {
+  play = { start: startMs / 1000, end: endMs / 1000, t0: Date.now() };
+  playTask.interval = 33;
+  playTask.repeat();
+  mgraphics.redraw();
+}
+function stopplay() {
+  play = null;
+  playTask.cancel();
+  mgraphics.redraw();
+}
+
+function drawButton(label, x, y, id) {
+  var w = textWidth(label, 10, true) + 16;
+  setColor(withAlpha(THEME.accent, 0.9));
+  mgraphics.rectangle_rounded(x, y, w, 18, 4, 4);
+  mgraphics.fill();
+  text(label, x + 8, y + 13, 10, THEME.bg, true);
+  buttons.push({ id: id, x: x, y: y, w: w, h: 18 });
+  return w;
+}
+
+function paintOverlay(w, h) {
+  if (st.name === 'no-access') {
+    text('macOS is blocking access to Voice Memos.', 12, 36, 11, THEME.title, true);
+    text('Turn on Full Disk Access for Ableton Live, then restart Live.', 12, 52, 10, THEME.fg, false);
+    var bw = drawButton('Open Privacy Settings', 12, 64, 'opensettings');
+    text('or', 12 + bw + 8, 77, 10, THEME.dim, false);
+    drawButton('Choose a folder instead', 12 + bw + 26, 64, 'choosefolder');
+    return true;
+  }
+  if (st.name === 'empty') {
+    text('No voice memos on this Mac yet.', 12, 36, 11, THEME.title, true);
+    text('Record with iCloud sync on for Voice Memos, or choose a folder of audio.', 12, 52, 10, THEME.fg, false);
+    drawButton('Choose a folder', 12, 64, 'choosefolder');
+    return true;
+  }
+  if (st.name === 'idle') {
+    text('Choose a memo from the list.', 12, h / 2, 11, THEME.dim, false);
+    return true;
+  }
+  if (st.name === 'error' || st.name === 'notice') {
+    text(st.name === 'error' ? 'This memo could not be loaded.' : 'This memo is only in iCloud.', 12, 40, 11, THEME.title, true);
+    text(st.message || '', 12, 56, 10, THEME.fg, false);
+    return true;
+  }
+  return false;
+}
+
+function paint() {
+  var s = size();
+  var w = s[0];
+  var h = s[1];
+  buttons = [];
+  setColor(THEME.bg);
+  mgraphics.rectangle(0, 0, w, h);
+  mgraphics.fill();
+  if (head) {
+    var meta = fmtTime(head.duration, 0) + '   ' + fmtDate(head.date);
+    var metaW = textWidth(meta, 9, false);
+    var title = String(head.title);
+    while (title.length > 1 && textWidth(title, 10, true) > w - metaW - 16) title = title.slice(0, -2) + '\u2026';
+    text(title, 4, 11, 10, THEME.title, true);
+    text(meta, w - metaW - 4, 11, 9, THEME.dim, false);
+  }
+  if (paintOverlay(w, h)) return;
+
+  var r = waveRect();
+  var mid = r.y + r.h / 2;
+  var bins = peaks.length / 2;
+  if (win) {
+    setColor(withAlpha(THEME.accent, 0.14));
+    mgraphics.rectangle(tToX(win.start), r.y, Math.max(1, tToX(win.end) - tToX(win.start)), r.h + CHIP_H + 2);
+    mgraphics.fill();
+  }
+  for (var b = 0; b < bins; b++) {
+    var x = (b / bins) * w;
+    var t = (b / bins) * duration;
+    var inWin = win && t >= win.start && t <= win.end;
+    setColor(inWin ? THEME.accent : withAlpha(THEME.fg, win ? 0.35 : 0.8));
+    var lo = peaks[2 * b];
+    var hi = peaks[2 * b + 1];
+    mgraphics.rectangle(x, mid - hi * (r.h / 2), Math.max(1, w / bins - 0.3), Math.max(1, (hi - lo) * (r.h / 2)));
+    mgraphics.fill();
+  }
+  var cy = chipY();
+  for (var i = 0; i < segs.length; i++) {
+    var x0 = tToX(segs[i].start);
+    var x1 = Math.max(x0 + 3, tToX(segs[i].end));
+    setColor(withAlpha(THEME.fg, 0.22));
+    mgraphics.rectangle_rounded(x0, cy, x1 - x0, CHIP_H, 3, 3);
+    mgraphics.fill();
+    if (x1 - x0 > 12) text(String(i + 1), x0 + 3, cy + 9, 9, THEME.fg, true);
+  }
+  if (win) {
+    setColor(THEME.accent);
+    mgraphics.rectangle(tToX(win.start) - 1, r.y, 2, r.h + CHIP_H + 2);
+    mgraphics.fill();
+    mgraphics.rectangle(tToX(win.end) - 1, r.y, 2, r.h + CHIP_H + 2);
+    mgraphics.fill();
+    mgraphics.rectangle_rounded(tToX(win.start) - 4, r.y, 8, 7, 2, 2);
+    mgraphics.fill();
+    mgraphics.rectangle_rounded(tToX(win.end) - 4, r.y, 8, 7, 2, 2);
+    mgraphics.fill();
+  }
+  if (play) {
+    setColor(THEME.title);
+    mgraphics.rectangle(tToX(Math.min(playPos(), play.end)) - 0.5, r.y, 1.5, r.h);
+    mgraphics.fill();
+  }
+  var ry = h - 2;
+  var steps = 4;
+  for (var k = 0; k <= steps; k++) {
+    var tt = (duration * k) / steps;
+    var label = fmtTime(tt, 0);
+    var lx = Math.min(w - textWidth(label, 9, false) - 2, Math.max(2, tToX(tt) - textWidth(label, 9, false) / 2));
+    text(label, lx, ry, 9, THEME.dim, false);
+  }
+  if (st.name === 'loading' || (prog && prog.fraction < 1)) {
+    var f = prog ? prog.fraction : 0;
+    setColor(withAlpha(THEME.accent, 0.8));
+    mgraphics.rectangle(0, r.y + r.h - 2, w * f, 2);
+    mgraphics.fill();
+    text(prog && prog.phase === 'full' ? 'Preparing full quality\u2026' : 'Converting\u2026', 4, r.y + 12, 9, THEME.dim, false);
+  }
+}
+
+function hitButton(x, y) {
+  for (var i = 0; i < buttons.length; i++) {
+    var b = buttons[i];
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b.id;
+  }
+  return null;
+}
+
+function onclick(x, y) {
+  var id = hitButton(x, y);
+  if (id) { outlet(0, id); return; }
+  if (st.name !== 'ready' || duration <= 0) return;
+  if (win && Math.abs(x - tToX(win.start)) < 5) { dragEdge = 'start'; return; }
+  if (win && Math.abs(x - tToX(win.end)) < 5) { dragEdge = 'end'; return; }
+  var cy = chipY();
+  if (y >= cy && y <= cy + CHIP_H) {
+    var t = xToT(x);
+    for (var i = 0; i < segs.length; i++) {
+      if (t >= segs[i].start && t <= segs[i].end) { outlet(0, 'segment', i); return; }
+    }
+  }
+  outlet(0, 'anchor', xToT(x));
+}
+
+function ondrag(x, y, button) {
+  if (!dragEdge || !win) return;
+  var t = xToT(x);
+  if (dragEdge === 'start') win.start = t;
+  else win.end = t;
+  mgraphics.redraw();
+  if (!button) {
+    outlet(0, 'drag', win.start, win.end);
+    dragEdge = null;
+  }
+}
