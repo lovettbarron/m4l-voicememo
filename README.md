@@ -115,3 +115,7 @@ Delete that folder at any time to clear everything. Pulled clips in a saved Set 
 - Design notes: [`docs/superpowers/specs/2026-10-12-voicememo-m4l-design.md`](docs/superpowers/specs/2026-10-12-voicememo-m4l-design.md). Manual test pass: [`docs/testing-checklist.md`](docs/testing-checklist.md).
 
 The analysis and window logic in `src/` is plain Node with no Max dependencies, so it can be tested outside Live. Only `src/max/` and `src/ui/` run inside Max.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
