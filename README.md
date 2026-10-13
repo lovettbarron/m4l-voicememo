@@ -44,9 +44,9 @@ Things to know before you grant it:
 2. **Pick a window.** The device finds segments separated by silence, shown as numbered chips under the waveform.
    - **Seg** with the number box selects a whole segment.
    - **1, 2, 4, 8 bar** use the Set's tempo. **5, 10, 30 s** are fixed lengths. Click the waveform to place the window.
-   - **SNAP** pulls window edges to nearby segment boundaries.
+   - **SNAP** moves the start of a bar or seconds window to the nearest segment start within a second, so it begins on a note rather than in silence.
    - Drag the window's edges to fine-tune it.
-3. **Audition** plays the window, with a playhead. Press it again to stop. **AUTO** auditions automatically when the window changes.
+3. **Audition** plays the window, with a playhead. Press it again to stop. **AUTO** auditions automatically when you open a recording.
 4. **Select a clip slot** on the device's track and press **PULL**. The clip goes into the selected slot, or the first empty slot below it. The right-hand panel shows where it will land.
 
 **NORM** normalizes the pulled clip. The gear button opens settings for the silence threshold (how far below the recording's loud parts counts as silence, so quiet phone recordings split as well as loud ones), the minimum gap between segments, and the edge fade.
@@ -72,7 +72,7 @@ The analysis is meant as a quick hint, not a measurement.
 
 The device works entirely on your Mac. It makes no network connections, and it opens the Voice Memos library read-only.
 
-Only three files touch the library. Each one begins with a `PRIVACY:` note.
+Only three files read from the library. Each one begins with a `PRIVACY:` note. (The controller also checks a recording's modification time so it knows when its cache is stale.)
 
 | File | What it does with the library |
 | --- | --- |
@@ -87,10 +87,11 @@ An automated test, [`test/privacy-boundary.test.js`](test/privacy-boundary.test.
 
 Run `npm test` to check this yourself.
 
-**What the device writes,** all inside `~/Music/Ableton/User Library/VoiceMemo Cache/`:
+**What the device writes,** inside `~/Music/Ableton/User Library/VoiceMemo Cache/` unless noted:
 - WAV copies of recordings you've selected, used for analysis and audition.
 - Cached analysis results.
 - `settings.json`, which holds the folder you chose, if any.
+- Only if Voice Memos has its database locked: a temporary copy in the system temp folder, deleted as soon as it has been read.
 - Pulled clips, when the Set is unsaved.
 
 Delete that folder at any time to clear everything. Pulled clips in a saved Set live in that Set's folder.
