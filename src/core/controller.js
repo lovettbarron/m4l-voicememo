@@ -93,6 +93,9 @@ function createController({ deps, send, cacheDir, home }) {
   async function selectMemo(id) {
     const memo = st.memos.find((m) => m.id === id);
     if (!memo) return;
+    // Double-clicks and the Set-restore chain re-send the open memo; only a failed load reloads.
+    if (st.memo && st.memo.id === id && !st.loadFailed) return;
+    st.loadFailed = false;
     const token = ++st.token;
     const current = () => token === st.token;
     Object.assign(st, { memo, files: null, mono: null, segments: [], windows: {}, window: null, anchorS: null, manual: null });
@@ -113,7 +116,10 @@ function createController({ deps, send, cacheDir, home }) {
       if (!current()) return;
       if (!st.mono) showWaveform(files.analysisWav);
     } catch (e) {
-      if (current()) send('state', { name: 'error', message: e.message });
+      if (current()) {
+        st.loadFailed = true;
+        send('state', { name: 'error', message: e.message });
+      }
       return;
     }
     st.files = files;

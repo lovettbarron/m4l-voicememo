@@ -25,8 +25,9 @@ function isFresh(dst, src) {
   }
 }
 
+let partSeq = 0;
 function afconvert(args, src, dst, expectedBytes, onProgress) {
-  const tmp = `${dst}.part.wav`;
+  const tmp = `${dst}.${process.pid}-${++partSeq}.part.wav`;
   return new Promise((resolve, reject) => {
     const proc = spawn('/usr/bin/afconvert', [...args, src, tmp]);
     let stderr = '';
@@ -46,15 +47,35 @@ function afconvert(args, src, dst, expectedBytes, onProgress) {
     proc.on('error', (e) => fail(`afconvert failed: ${e.message}`));
     proc.on('close', (code) => {
       if (code !== 0) return fail(`afconvert failed (${code}): ${stderr.trim().split('\n')[0] || 'unknown error'}`);
+      try {
+        fs.renameSync(tmp, dst);
+      } catch (e) {
+        return fail(`afconvert output could not be saved: ${e.message}`);
+      }
       clearInterval(timer);
-      fs.renameSync(tmp, dst);
       onProgress(1);
       resolve(dst);
     });
   });
 }
 
-async function convert(memo, cacheDir, { onProgress = () => {}, onAnalysisReady = () => {} } = {}) {
+// One conversion per cache file at a time: a second request for the same memo joins the first.
+const inFlight = new Map();
+function convert(memo, cacheDir, opts = {}) {
+  const key = path.join(cacheDir, safeId(memo.id || ''));
+  const onAnalysisReady = opts.onAnalysisReady || (() => {});
+  if (inFlight.has(key)) {
+    return inFlight.get(key).then((out) => {
+      onAnalysisReady(out.analysisWav);
+      return out;
+    });
+  }
+  const job = convertOnce(memo, cacheDir, opts).finally(() => inFlight.delete(key));
+  inFlight.set(key, job);
+  return job;
+}
+
+async function convertOnce(memo, cacheDir, { onProgress = () => {}, onAnalysisReady = () => {} } = {}) {
   if (!memo.path || !fs.existsSync(memo.path)) {
     throw Object.assign(new Error('Recording not downloaded'), { code: 'ENOENT' });
   }

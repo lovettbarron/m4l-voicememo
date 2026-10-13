@@ -211,3 +211,28 @@ test('a newer selection wins over a slower earlier one', async () => {
   assert.equal(last('state')[1].name, 'notice');
   assert.equal(last('audio'), undefined);
 });
+
+test('selecting the memo that is already open does not reload it', async () => {
+  const { c, calls } = setup();
+  c.init({});
+  await Promise.all([c.selectMemo('A'), c.selectMemo('A')]);
+  await c.selectMemo('A');
+  assert.equal(calls.convert, 1);
+});
+
+test('a memo that failed to load can be selected again to retry', async () => {
+  let fail = true;
+  const { c, last, calls } = setup({
+    convert: async () => {
+      calls.convert++;
+      if (fail) throw new Error('afconvert failed');
+      return { fullWav: '/cache/A.wav', analysisWav: '/cache/A.a.wav' };
+    },
+  });
+  c.init({});
+  await c.selectMemo('A');
+  assert.equal(last('state')[1].name, 'error');
+  fail = false;
+  await c.selectMemo('A');
+  assert.equal(last('state')[1].name, 'ready');
+});

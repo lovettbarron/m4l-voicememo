@@ -62,3 +62,21 @@ test('unreadable audio rejects with afconvert error and leaves no partial file',
   await assert.rejects(convert({ id: 'bad', path: bad }, cache), /afinfo failed|afconvert failed/);
   assert.deepEqual(fs.existsSync(cache) ? fs.readdirSync(cache).filter((f) => f.endsWith('.part.wav')) : [], []);
 });
+
+test('two conversions of the same memo at once both finish (double-click while converting)', async () => {
+  const d = tmp();
+  const memo = { id: 'dup', path: stereoM4a(d), duration: 2 };
+  const uncaught = [];
+  const onUncaught = (e) => uncaught.push(e);
+  process.on('uncaughtException', onUncaught);
+  try {
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('conversion never settled')), 10000));
+    const [a, b] = await Promise.race([Promise.all([convert(memo, path.join(d, 'c')), convert(memo, path.join(d, 'c'))]), timeout]);
+    assert.deepEqual(a, b);
+    assert.equal(wav.read(a.fullWav).channels.length, 2);
+  } finally {
+    process.off('uncaughtException', onUncaught);
+  }
+  assert.deepEqual(uncaught, []);
+  assert.deepEqual(fs.readdirSync(path.join(d, 'c')).filter((n) => n.includes('.part')), []);
+});
