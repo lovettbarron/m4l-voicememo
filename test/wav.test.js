@@ -97,3 +97,24 @@ test('process normalizes peak to target dBFS', () => {
   for (const v of out.channels[0]) peak = Math.max(peak, Math.abs(v));
   assert.ok(Math.abs(peak - Math.pow(10, -1 / 20)) < 1e-3);
 });
+
+test('copyRange streams in chunks and matches the in-memory process + write', () => {
+  const d = tmp();
+  const src = path.join(d, 'src.wav');
+  const ch = (f, a) => { const s = sine(f, 3, 8000, a); for (let i = 0; i < s.length; i += 997) s[i] = -a; return s; };
+  wav.write(src, { sampleRate: 8000, channels: [ch(220, 0.3), ch(330, 0.5)] }, { bitDepth: 24 });
+  for (const normalize of [false, true]) {
+    const expected = wav.process(wav.readRange(src, 0.5, 2.25), { fadeMs: 20, normalize, targetDb: -1 });
+    const out = path.join(d, `out-${normalize}.wav`);
+    wav.copyRange(src, out, 0.5, 2.25, { fadeMs: 20, normalize, targetDb: -1, chunkFrames: 1000 });
+    const got = wav.read(out);
+    assert.equal(got.sampleRate, 8000);
+    assert.equal(got.channels.length, 2);
+    for (let c = 0; c < 2; c++) {
+      assert.equal(got.channels[c].length, expected.channels[c].length);
+      for (let i = 0; i < got.channels[c].length; i++) {
+        assert.ok(Math.abs(got.channels[c][i] - expected.channels[c][i]) <= 2 / 8388608, `ch${c}[${i}] normalize=${normalize}`);
+      }
+    }
+  }
+});

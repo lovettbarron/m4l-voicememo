@@ -32,10 +32,8 @@ function uniquePath(dir, base) {
 function writePull({ fullWav, title, start, end, normalize = false, setPath = null, cacheDir, fadeMs = 5 }) {
   const dir = pullDir({ setPath, cacheDir });
   fs.mkdirSync(dir, { recursive: true });
-  const audio = wav.process(wav.readRange(fullWav, start, end), { fadeMs, normalize, targetDb: -1 });
   const out = uniquePath(dir, `${sanitize(title)}-${mmss(start)}-${mmss(end)}`);
-  wav.write(out, audio, { bitDepth: 24 });
-  return out;
+  return wav.copyRange(fullWav, out, start, end, { fadeMs, normalize, targetDb: -1 });
 }
 
 module.exports = { sanitize, mmss, pullDir, writePull };
