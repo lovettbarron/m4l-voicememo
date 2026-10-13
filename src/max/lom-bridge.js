@@ -54,7 +54,7 @@ function findSlot() {
 function refresh() {
   if (!ready) return;
   var song = new LiveAPI('live_set');
-  emit('tempo', Number(song.get('tempo')), Number(song.get('signature_numerator')));
+  emit('tempo', Number(song.get('tempo')), Number(song.get('signature_numerator')), Number(song.get('signature_denominator')));
   if (hasFilePath) emit('setpath', stripQuotes([].concat(song.get('file_path')).join(' ')));
   var t = findSlot();
   emit('target', t.ok, t.label);

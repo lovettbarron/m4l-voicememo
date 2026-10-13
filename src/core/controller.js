@@ -285,9 +285,12 @@ function createController({ deps, send, cacheDir, home }) {
     send('status', { level: Number(ok) ? 'ok' : 'error', message: String(message) });
   }
 
-  function setTempo(bpm, beatsPerBar) {
+  // Live's tempo counts quarter notes in every signature, so a bar is num * 4/den of them.
+  function setTempo(bpm, numerator, denominator = 4) {
+    const num = Number(numerator) > 0 ? Number(numerator) : 4;
+    const den = Number(denominator) > 0 ? Number(denominator) : 4;
     st.tempo = Number(bpm) > 0 ? Number(bpm) : 120;
-    st.beatsPerBar = Number(beatsPerBar) > 0 ? Number(beatsPerBar) : 4;
+    st.beatsPerBar = (num * 4) / den;
     recompute();
   }
 

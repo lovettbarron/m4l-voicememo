@@ -97,7 +97,7 @@ maxApi.addHandlers({
   audition: () => controller.audition(),
   pull: () => controller.pull(),
   pullresult: (ok, ...msg) => controller.pullResult(ok, joined(msg)),
-  tempo: (bpm, num) => controller.setTempo(bpm, num),
+  tempo: (bpm, num, den) => controller.setTempo(bpm, num, den),
   setpath: (...parts) => controller.setSetPath(joined(parts)),
   target: (ok, ...label) => controller.setTarget(ok, joined(label)),
   opensettings: () =>

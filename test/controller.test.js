@@ -236,3 +236,15 @@ test('a memo that failed to load can be selected again to retry', async () => {
   await c.selectMemo('A');
   assert.equal(last('state')[1].name, 'ready');
 });
+
+test('bar length follows the time signature denominator (Live tempo counts quarter notes)', async () => {
+  const { c, last } = setup();
+  c.init({});
+  await c.selectMemo('A');
+  c.setParam('segment', 0);
+  c.setParam('length', W.PRESETS.indexOf('1bar'));
+  c.setTempo(60, 6, 8); // 6/8: three quarter notes per bar
+  assert.deepEqual(last('window')[1], { start: 1, end: 4 });
+  c.setTempo(60, 7, 8);
+  assert.deepEqual(last('window')[1], { start: 1, end: 4.5 });
+});
