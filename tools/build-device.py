@@ -168,9 +168,11 @@ def toggle(id, label, x, pres_x, name, initial):
         pres=[pres_x, ROW_Y + 4, 36, 15],
         **param(name, name, 2, parameter_enum=["off", "on"], parameter_mmax=1,
                 parameter_initial=[initial], parameter_initial_enable=1))
-    pid = f"p_{id}"
+    # [i] remembers the last value so it can be re-sent on ready: a bang would flip the toggle itself.
+    pid, hold = f"p_{id}", f"hold_{id}"
+    obj(hold, "i", [x + 60, 720, 30, 22], ins=2)
     obj(pid, f"prepend param {name.lower()}", [x, 745, 110, 22])
-    wire(id, pid); wire(pid, "node")
+    wire(id, hold); wire(hold, pid); wire(pid, "node")
 
 toggle("snap", "SNAP", 500, 492, "Snap", 1)
 toggle("auto", "AUTO", 620, 530, "Auto", 1)
@@ -179,10 +181,10 @@ toggle("norm", "NORM", 740, 568, "Norm", 0)
 def push(id, label, x, pres, name, msg, dst):
     obj(id, None, [x, 780, 60, 20], cls="live.text", ins=1, outs=2, text=label, texton=label, mode=0, pres=pres,
         **param(name, name, 2, parameter_enum=["off", "on"], parameter_mmax=1))
-    sid, mid = f"sel_{id}", f"msg_{id}"
-    obj(sid, "sel 1", [x, 805, 40, 22], outs=2)
+    # In button mode live.text sends a bang (not 1) on click.
+    mid = f"msg_{id}"
     obj(mid, None, [x, 830, 60, 22], cls="message", text=msg, ins=2)
-    wire(id, sid); wire(sid, mid); wire(mid, dst)
+    wire(id, mid); wire(mid, dst)
 
 # Audition is a play/stop toggle: on asks node to audition, off stops sfplay~ and the playhead.
 obj("audbtn", None, [500, 780, 60, 20], cls="live.text", ins=1, outs=2, text="\u25b6 Audition", texton="\u25a0 Stop",
@@ -259,7 +261,8 @@ wire("expand", "openmsg2"); wire("openmsg2", "pcontrol2"); wire("pcontrol2", "bi
 # Parameter values sent at load arrive before node.script is up; re-emit them once it is ready.
 obj("rebang", "t b b b b b b", [120, 300, 100, 22], outs=6)
 wire("readyt", "rebang", 1)
-for i, pid in enumerate(["segnum", "lentab", "snap", "auto", "norm", "settings"]):
+# live.numbox/live.tab output their value on bang; toggles go through their [i] holders.
+for i, pid in enumerate(["segnum", "lentab", "hold_snap", "hold_auto", "hold_norm", "settings"]):
     wire("rebang", pid, i)
 
 # --- theme ---
