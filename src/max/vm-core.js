@@ -104,4 +104,7 @@ maxApi.addHandlers({
     execFile('/usr/bin/open', ['x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles']),
 });
 
+// New memos sync in from iCloud while Live is open; check every few seconds (stat only).
+setInterval(() => controller.poll(), 4000).unref();
+
 send('ready');

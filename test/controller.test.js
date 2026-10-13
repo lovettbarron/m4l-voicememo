@@ -282,3 +282,35 @@ test('switching memos stops audition of the previous one', async () => {
   await c.selectMemo('C');
   assert.deepEqual(sent[0], ['stop']);
 });
+
+test('polling refreshes the list only when the library changes', async () => {
+  let sig = 'v1';
+  let lists = 0;
+  const memos = [{ id: 'A', title: 'Riff', date: '2026-10-12T00:00:00.000Z', duration: 30, path: null, status: 'cloud', ext: 'm4a' }];
+  const { c, last } = setup({ catalog: { list: () => { lists++; return memos.slice(); }, signature: () => sig } });
+  c.init({});
+  assert.equal(lists, 1);
+  c.poll();
+  assert.equal(lists, 1);
+  memos.unshift({ id: 'W', title: 'From the watch', date: '2026-10-13T00:00:00.000Z', duration: 4, path: null, status: 'cloud', ext: 'm4a' });
+  sig = 'v2';
+  c.poll();
+  assert.equal(lists, 2);
+  assert.equal(last('memos')[1].items[0].title, 'From the watch');
+});
+
+test('a selected memo that finishes downloading loads by itself', async () => {
+  let sig = 'v1';
+  const memos = [{ id: 'C', title: 'From the watch', date: '2026-10-13T00:00:00.000Z', duration: 30, path: null, status: 'cloud', ext: 'm4a' }];
+  const { c, last, calls } = setup({ catalog: { list: () => memos.map((m) => ({ ...m })), signature: () => sig } });
+  c.init({});
+  await c.selectMemo('C');
+  assert.equal(last('state')[1].name, 'notice');
+  memos[0].status = 'local';
+  memos[0].path = __filename;
+  sig = 'v2';
+  c.poll();
+  for (let i = 0; i < 100 && last('state')[1].name !== 'ready'; i++) await new Promise((r) => setTimeout(r, 10));
+  assert.equal(calls.convert, 1);
+  assert.equal(last('state')[1].name, 'ready');
+});

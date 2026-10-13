@@ -138,4 +138,23 @@ function list(location, { adapter = 'auto', durationOf = afinfoDuration } = {}) 
   return memos.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 }
 
-module.exports = { list, queryCopy };
+// Cheap change check for auto-refresh: stats the database (and its write-ahead log) or lists
+// the folder. Reads no contents.
+function signature(location) {
+  const stamp = (p) => {
+    try {
+      const st = fs.statSync(p);
+      return `${st.mtimeMs}:${st.size}`;
+    } catch {
+      return '-';
+    }
+  };
+  if (location.mode === 'library') return [location.dbPath, `${location.dbPath}-wal`].map(stamp).join('|');
+  try {
+    return fs.readdirSync(location.root).filter((f) => AUDIO_EXT.test(f)).sort().join('\n');
+  } catch {
+    return '-';
+  }
+}
+
+module.exports = { list, queryCopy, signature };

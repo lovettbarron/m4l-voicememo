@@ -44,6 +44,8 @@ function createController({ deps, send, cacheDir, home }) {
 
   function refresh() {
     const loc = deps.locate({ home, overridePath: st.overridePath });
+    st.loc = loc;
+    st.libSig = loc.mode === 'none' ? null : librarySignature(loc);
     if (loc.mode === 'none') {
       st.memos = [];
       send('memos', { items: [] });
@@ -59,6 +61,14 @@ function createController({ deps, send, cacheDir, home }) {
     send('memos', { items: st.memos });
     if (!st.memos.length) send('state', { name: 'empty', reason: 'no-memos' });
     else if (!st.memo) send('state', { name: 'idle' });
+    // The open memo was still in iCloud and has now downloaded: load it.
+    if (st.memo && st.memo.status !== 'local') {
+      const now = st.memos.find((m) => m.id === st.memo.id);
+      if (now && now.status === 'local') {
+        st.loadFailed = true; // lets selectMemo reload the same id
+        setImmediate(() => selectMemo(now.id));
+      }
+    }
     if (st.pendingRestore) {
       const id = st.pendingRestore;
       st.pendingRestore = null;
@@ -67,6 +77,21 @@ function createController({ deps, send, cacheDir, home }) {
         setImmediate(() => selectMemo(id, { restoring: true }));
       }
     }
+  }
+
+  function librarySignature(loc) {
+    try {
+      return deps.catalog.signature ? deps.catalog.signature(loc) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Called on a timer: picks up memos that sync in from iCloud while the device is open.
+  function poll() {
+    if (!st.loc || st.loc.mode === 'none') return;
+    const sig = librarySignature(st.loc);
+    if (sig !== null && sig !== st.libSig) refresh();
   }
 
   function setFolder(p) {
@@ -311,7 +336,7 @@ function createController({ deps, send, cacheDir, home }) {
     send('target', st.target);
   }
 
-  return { init, refresh, setFolder, restore, selectMemo, setParam, anchor, drag, audition, pull, pullResult, setTempo, setSetPath, setTarget };
+  return { init, refresh, poll, setFolder, restore, selectMemo, setParam, anchor, drag, audition, pull, pullResult, setTempo, setSetPath, setTarget };
 }
 
 module.exports = { createController };

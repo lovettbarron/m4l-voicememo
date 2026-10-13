@@ -111,3 +111,22 @@ test('same file name in two folders gives two different memo ids', () => {
   assert.notEqual(ma.id, mb.id);
   assert.match(ma.id, /^f-[0-9a-f]{16}$/);
 });
+
+test('signature changes when a memo is added to the library, and not otherwise', () => {
+  const { signature } = require('../src/library/catalog');
+  const lib = sonomaLibrary();
+  const before = signature(lib);
+  assert.equal(signature(lib), before);
+  const db = new DatabaseSync(lib.dbPath);
+  db.prepare('INSERT INTO ZCLOUDRECORDING (ZDATE, ZPATH, ZUNIQUEID) VALUES (?, ?, ?)').run(820000000, 'd.m4a', 'UUID-D');
+  db.close();
+  assert.notEqual(signature(lib), before);
+});
+
+test('folder signature changes when a file is added', () => {
+  const { signature } = require('../src/library/catalog');
+  const root = tmp();
+  const before = signature({ mode: 'folder', root });
+  tone(path.join(root, 'new.m4a'));
+  assert.notEqual(signature({ mode: 'folder', root }), before);
+});
