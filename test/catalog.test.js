@@ -100,3 +100,14 @@ test('busy-database fallback deletes its temporary copy of the library', () => {
   assert.deepEqual(rows.map((r) => r.ZUNIQUEID), ['UUID-A', 'UUID-B', 'UUID-C']);
   assert.deepEqual(copies(), before);
 });
+
+test('same file name in two folders gives two different memo ids', () => {
+  const a = tmp();
+  const b = tmp();
+  tone(path.join(a, 'New Recording.m4a'));
+  tone(path.join(b, 'New Recording.m4a'));
+  const [ma] = list({ mode: 'folder', root: a }, { durationOf: () => 1 });
+  const [mb] = list({ mode: 'folder', root: b }, { durationOf: () => 1 });
+  assert.notEqual(ma.id, mb.id);
+  assert.match(ma.id, /^f-[0-9a-f]{16}$/);
+});

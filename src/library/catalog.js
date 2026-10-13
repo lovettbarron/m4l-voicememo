@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const crypto = require('crypto');
 
 const CORE_DATA_EPOCH = 978307200;
 const AUDIO_EXT = /\.(m4a|qta|wav|aiff?)$/i;
@@ -118,7 +119,8 @@ function listFolder(root, durationOf = afinfoDuration) {
     .map((f) => {
       const abs = path.join(root, f);
       return {
-        id: `f-${f}`,
+        // Hash of the full path: same-named files in different folders must not share a cache entry.
+        id: `f-${crypto.createHash('sha1').update(abs).digest('hex').slice(0, 16)}`,
         title: path.basename(f, path.extname(f)),
         date: fs.statSync(abs).mtime.toISOString(),
         duration: durationOf(abs),
