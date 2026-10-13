@@ -265,3 +265,20 @@ test('a saved segment beyond the new segment count is clamped', async () => {
   await c.restore('A');
   assert.deepEqual(last('segmentindex'), ['segmentindex', 1]);
 });
+
+test('clicking a segment chip updates the saved Segment parameter', async () => {
+  const { c, last } = setup();
+  c.init({});
+  await c.selectMemo('A');
+  c.setParam('segment', 0);
+  assert.deepEqual(last('segmentindex'), ['segmentindex', 0]);
+});
+
+test('switching memos stops audition of the previous one', async () => {
+  const { c, sent } = setup();
+  c.init({});
+  await c.selectMemo('A');
+  sent.length = 0;
+  await c.selectMemo('C');
+  assert.deepEqual(sent[0], ['stop']);
+});

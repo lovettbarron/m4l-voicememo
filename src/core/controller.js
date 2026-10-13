@@ -98,6 +98,7 @@ function createController({ deps, send, cacheDir, home }) {
     // Double-clicks and the Set-restore chain re-send the open memo; only a failed load reloads.
     if (st.memo && st.memo.id === id && !st.loadFailed) return;
     st.loadFailed = false;
+    send('stop'); // the previous memo's audition must not keep playing
     const token = ++st.token;
     const current = () => token === st.token;
     Object.assign(st, { memo, files: null, mono: null, segments: [], windows: {}, window: null, anchorS: null, manual: null });
@@ -222,6 +223,7 @@ function createController({ deps, send, cacheDir, home }) {
       if (name === 'segment') {
         st.anchorS = null;
         st.manual = null;
+        send('segmentindex', v); // keeps the saved number box in step with chip clicks
       }
       if (name === 'length') st.manual = null;
       if (name !== 'auto' && name !== 'norm') recompute();

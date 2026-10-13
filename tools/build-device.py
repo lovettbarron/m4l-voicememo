@@ -71,8 +71,8 @@ obj("one", None, [20, 95, 30, 22], cls="message", text="1", ins=2)
 obj("lomjs", f"js {LOM}", [20, 170, 260, 22])
 obj("lominit", None, [120, 95, 40, 22], cls="message", text="init", ins=2)
 obj("node", f"node.script {CORE} @autostart 1", [20, 220, 420, 22], outs=2)
-obj("route", "route ready memos header waveform segments window windowinfo progress state target status audio audition pull pullenable segmentindex select",
-    [20, 260, 900, 22], outs=18)
+obj("route", "route ready memos header waveform segments window windowinfo progress state target status audio audition pull pullenable segmentindex select stop",
+    [20, 260, 900, 22], outs=19)
 obj("readyt", "t b b b b", [20, 300, 80, 22], outs=4)
 obj("initmsg", None, [20, 335, 40, 22], cls="message", text="init", ins=2)
 obj("resendmsg", None, [70, 335, 55, 22], cls="message", text="resend", ins=2)
@@ -84,7 +84,7 @@ wire("node", "route")
 wire("route", "readyt", 0)
 wire("readyt", "initmsg", 3); wire("initmsg", "node")
 wire("readyt", "resendmsg", 2); wire("resendmsg", "lomjs")
-wire("route", "print", 17)
+wire("route", "print", 18)
 
 # --- UI ---
 TOP = 4
@@ -199,6 +199,10 @@ wire("audsel", "audstop", 0); wire("audstop", "sfplay"); wire("audsel", "stoppla
 # sfplay~ bangs its last outlet when playback ends: release the button and stop the playhead.
 obj("doneset", None, [400, 500, 50, 22], cls="message", text="set 0", ins=2)
 wire("sfplay", "doneset", 2); wire("doneset", "audbtn"); wire("sfplay", "stopplay", 2)
+# Switching memos: stop playback (its done bang then releases the button and playhead).
+obj("stopt", "t b", [400, 440, 30, 22]); obj("stopzero", None, [400, 465, 30, 22], cls="message", text="0", ins=2)
+wire("route", "stopt", 17); wire("stopt", "stopzero"); wire("stopzero", "sfplay")
+wire("stopt", "doneset"); wire("stopt", "stopplay")
 push("pullbtn", "PULL", 600, [606, ROW_Y - 8, 146, 36], "Pull", "pull", "node")
 
 # Pull enable → ignoreclick
